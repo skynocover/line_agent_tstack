@@ -29,7 +29,6 @@ export function validateEnvironment(env: any): env is EnvironmentBindings {
     'GOOGLE_AI_API_KEY',
     'DB',
     'APP_STORAGE',
-    'ENV',
   ];
 
   for (const key of requiredKeys) {
