@@ -24,7 +24,7 @@
     {
       "binding": "DB",
       "database_name": "line-agent-database",
-      "database_id": "b4590b7f-ec25-4044-9ff3-140f68e3c720",
+      "database_id": "3f116e84-d408-4b92-b2ab-f9b692f15798",
       "migrations_dir": "./src/db/migrations"
     }
   ],
