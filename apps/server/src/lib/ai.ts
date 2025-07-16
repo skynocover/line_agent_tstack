@@ -1,5 +1,4 @@
 import { tool } from 'ai';
-import axios from 'axios';
 import { z } from 'zod';
 import type { CalendarEventController } from '../calendar-events/controller';
 import type { calendarEvents, NewCalendarEvent } from '../db/schema';
@@ -276,21 +275,47 @@ export const createEventWithAI = async (
     const userLocalDate = getUserLocalDateString(timezone);
 
     console.log('🚀 ~ aiBaseUrl:', aiBaseUrl);
+    console.log('🚀 ~ 準備發送 AI 請求:', { userMessage, timezone, userLocalDate });
 
-    // Call the AI API instead of using generateText directly
-    const aiResponse = await axios.post<AIApiResponse>(`${aiBaseUrl}/api/calendar-ai`, {
+    // 使用 fetch API 替代 axios，更適合 Cloudflare Workers
+    const requestBody = JSON.stringify({
       userMessage,
       timezone,
       userLocalDate,
       apiKey,
     });
-    console.log('🚀 ~ aiResponse:', JSON.stringify(aiResponse.data));
 
-    if (!aiResponse.data.success) {
-      throw new Error(aiResponse.data.error || 'AI API returned error');
+    console.log('🚀 ~ 請求內容:', requestBody);
+
+    const response = await fetch(`${aiBaseUrl}/api/calendar-ai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: requestBody,
+    });
+
+    console.log('🚀 ~ fetch response status:', response.status);
+    console.log('🚀 ~ fetch response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('🚀 ~ AI API HTTP 錯誤:', response.status, errorText);
+      throw new Error(`AI API HTTP error: ${response.status} - ${errorText}`);
     }
 
-    const { text, toolCalls, toolResults } = aiResponse.data.data!;
+    const aiResponseData: AIApiResponse = await response.json();
+    console.log('🚀 ~ aiResponse:', JSON.stringify(aiResponseData));
+
+    if (!aiResponseData.success) {
+      throw new Error(aiResponseData.error || 'AI API returned error');
+    }
+
+    if (!aiResponseData.data) {
+      throw new Error('AI API returned no data');
+    }
+
+    const { text, toolCalls, toolResults } = aiResponseData.data;
 
     // 處理工具調用結果 - 需要實際執行事件創建
     let resultText = text;
@@ -300,7 +325,7 @@ export const createEventWithAI = async (
     if (toolCalls && toolCalls.length > 0 && toolResults) {
       for (const toolCall of toolCalls) {
         if (toolCall.toolName === 'createEvent') {
-          const toolResult = toolResults.find((tr: any) => tr.toolCallId === toolCall.toolCallId);
+          const toolResult = toolResults.find((tr: { toolCallId: string; result?: any }) => tr.toolCallId === toolCall.toolCallId);
 
           if (toolResult?.result?.success && toolResult.result.event) {
             // 實際執行事件創建
