@@ -364,7 +364,12 @@ app.post('/webhook', async (c) => {
   const { events } = await c.req.json();
 
   try {
-    const response = await handleWebhook(events, c);
+    // const response = await handleWebhook(events, c);
+    // return c.text(response);
+    const processingPromise = handleWebhook(events, c);
+    c.executionCtx.waitUntil(processingPromise);
+
+    const response = await processingPromise;
     return c.text(response);
   } catch (error) {
     console.error('🚀 ~ webhook error:', error);
