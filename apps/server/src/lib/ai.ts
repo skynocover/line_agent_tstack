@@ -283,6 +283,7 @@ export const createEventWithAI = async (
       userLocalDate,
       apiKey,
     });
+    console.log('🚀 ~ aiResponse:', JSON.stringify(aiResponse.data));
 
     if (!aiResponse.data.success) {
       throw new Error(aiResponse.data.error || 'AI API returned error');

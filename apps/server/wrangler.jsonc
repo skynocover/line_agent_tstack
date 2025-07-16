@@ -33,5 +33,9 @@
       "binding": "APP_STORAGE",
       "bucket_name": "line-agent-storage"
     }
-  ]
+  ],
+    "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+    }
 }
