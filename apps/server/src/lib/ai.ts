@@ -1,4 +1,5 @@
 import { tool } from 'ai';
+import axios from 'axios';
 import { z } from 'zod';
 import type { CalendarEventController } from '../calendar-events/controller';
 import type { calendarEvents, NewCalendarEvent } from '../db/schema';
@@ -274,83 +275,20 @@ export const createEventWithAI = async (
   try {
     const userLocalDate = getUserLocalDateString(timezone);
 
-    console.log('🚀 ~ aiBaseUrl:', aiBaseUrl);
-    console.log('🚀 ~ 準備發送 AI 請求:', { userMessage, timezone, userLocalDate });
-
-    // 使用 fetch API 替代 axios，更適合 Cloudflare Workers
-    const requestBody = JSON.stringify({
+    // Call the AI API instead of using generateText directly
+    const aiResponse = await axios.post<AIApiResponse>(`${aiBaseUrl}/api/calendar-ai`, {
       userMessage,
       timezone,
       userLocalDate,
       apiKey,
     });
+    console.log('🚀 ~ aiResponse:', JSON.stringify(aiResponse.data));
 
-    console.log('🚀 ~ 請求內容:', requestBody);
-
-    let response: Response;
-    try {
-      console.log('🚀 ~ 開始發送 fetch 請求...');
-      response = await fetch(`${aiBaseUrl}/api/calendar-ai`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: requestBody,
-      });
-      console.log('🚀 ~ fetch 請求完成');
-    } catch (fetchError) {
-      console.error('🚀 ~ fetch 請求失敗:', fetchError);
-      throw new Error(`Fetch request failed: ${fetchError}`);
+    if (!aiResponse.data.success) {
+      throw new Error(aiResponse.data.error || 'AI API returned error');
     }
 
-    console.log('🚀 ~ fetch response status:', response.status);
-    console.log('🚀 ~ fetch response ok:', response.ok);
-
-    if (!response.ok) {
-      let errorText = '';
-      try {
-        errorText = await response.text();
-      } catch (textError) {
-        console.error('🚀 ~ 無法讀取錯誤回應:', textError);
-        errorText = 'Unknown error';
-      }
-      console.error('🚀 ~ AI API HTTP 錯誤:', response.status, errorText);
-      throw new Error(`AI API HTTP error: ${response.status} - ${errorText}`);
-    }
-
-    let aiResponseData: AIApiResponse;
-    let responseText: string;
-    try {
-      console.log('🚀 ~ 開始讀取回應內容...');
-      responseText = await response.text();
-      console.log('🚀 ~ 回應內容長度:', responseText.length);
-      console.log('🚀 ~ 回應內容預覽:', responseText.substring(0, 200));
-    } catch (textError) {
-      console.error('🚀 ~ 無法讀取回應內容:', textError);
-      throw new Error(`Failed to read response: ${textError}`);
-    }
-
-    try {
-      console.log('🚀 ~ 開始解析 JSON...');
-      aiResponseData = JSON.parse(responseText);
-      console.log('🚀 ~ JSON 解析完成');
-    } catch (jsonError) {
-      console.error('🚀 ~ JSON 解析失敗:', jsonError);
-      console.error('🚀 ~ 原始回應內容:', responseText);
-      throw new Error(`JSON parse error: ${jsonError}`);
-    }
-
-    console.log('🚀 ~ aiResponse:', JSON.stringify(aiResponseData));
-
-    if (!aiResponseData.success) {
-      throw new Error(aiResponseData.error || 'AI API returned error');
-    }
-
-    if (!aiResponseData.data) {
-      throw new Error('AI API returned no data');
-    }
-
-    const { text, toolCalls, toolResults } = aiResponseData.data;
+    const { text, toolCalls, toolResults } = aiResponse.data.data!;
 
     // 處理工具調用結果 - 需要實際執行事件創建
     let resultText = text;
@@ -360,9 +298,7 @@ export const createEventWithAI = async (
     if (toolCalls && toolCalls.length > 0 && toolResults) {
       for (const toolCall of toolCalls) {
         if (toolCall.toolName === 'createEvent') {
-          const toolResult = toolResults.find(
-            (tr: { toolCallId: string; result?: any }) => tr.toolCallId === toolCall.toolCallId,
-          );
+          const toolResult = toolResults.find((tr: any) => tr.toolCallId === toolCall.toolCallId);
 
           if (toolResult?.result?.success && toolResult.result.event) {
             // 實際執行事件創建
