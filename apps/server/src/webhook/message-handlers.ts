@@ -151,6 +151,7 @@ const processText = async (
     messageId: message.id,
     groupId: source.groupId || source.roomId,
   });
+  console.log('🚀 ~ aiResult:', JSON.stringify(aiResult));
 
   if (aiResult.success) {
     if (aiResult.createdEvent) {

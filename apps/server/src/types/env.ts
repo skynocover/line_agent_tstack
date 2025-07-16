@@ -38,13 +38,6 @@ export function validateEnvironment(env: any): env is EnvironmentBindings {
     }
   }
 
-  // 驗證 ENV 值
-  const validEnvValues = ['local', 'production', 'development'];
-  if (!validEnvValues.includes(env.ENV as string)) {
-    console.error(`Invalid ENV value: ${env.ENV}. Must be one of: ${validEnvValues.join(', ')}`);
-    return false;
-  }
-
   return true;
 }
 
