@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
       apiKey,
     } = requestSchema.parse(body);
 
+    console.log({ userMessage, timezone, userLocalDate, apiKey });
+
     const ai = createGoogleGenerativeAI({ apiKey });
 
     // Create event tool
@@ -64,6 +66,8 @@ export async function POST(request: NextRequest) {
       tools: { createEvent: eventTool },
       toolChoice: 'auto',
     });
+
+    console.log('🚀 ~ result:', result);
 
     return NextResponse.json({
       success: true,

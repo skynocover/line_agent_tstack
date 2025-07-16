@@ -287,24 +287,59 @@ export const createEventWithAI = async (
 
     console.log('🚀 ~ 請求內容:', requestBody);
 
-    const response = await fetch(`${aiBaseUrl}/api/calendar-ai`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: requestBody,
-    });
+    let response: Response;
+    try {
+      console.log('🚀 ~ 開始發送 fetch 請求...');
+      response = await fetch(`${aiBaseUrl}/api/calendar-ai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: requestBody,
+      });
+      console.log('🚀 ~ fetch 請求完成');
+    } catch (fetchError) {
+      console.error('🚀 ~ fetch 請求失敗:', fetchError);
+      throw new Error(`Fetch request failed: ${fetchError}`);
+    }
 
     console.log('🚀 ~ fetch response status:', response.status);
     console.log('🚀 ~ fetch response ok:', response.ok);
 
     if (!response.ok) {
-      const errorText = await response.text();
+      let errorText = '';
+      try {
+        errorText = await response.text();
+      } catch (textError) {
+        console.error('🚀 ~ 無法讀取錯誤回應:', textError);
+        errorText = 'Unknown error';
+      }
       console.error('🚀 ~ AI API HTTP 錯誤:', response.status, errorText);
       throw new Error(`AI API HTTP error: ${response.status} - ${errorText}`);
     }
 
-    const aiResponseData: AIApiResponse = await response.json();
+    let aiResponseData: AIApiResponse;
+    let responseText: string;
+    try {
+      console.log('🚀 ~ 開始讀取回應內容...');
+      responseText = await response.text();
+      console.log('🚀 ~ 回應內容長度:', responseText.length);
+      console.log('🚀 ~ 回應內容預覽:', responseText.substring(0, 200));
+    } catch (textError) {
+      console.error('🚀 ~ 無法讀取回應內容:', textError);
+      throw new Error(`Failed to read response: ${textError}`);
+    }
+
+    try {
+      console.log('🚀 ~ 開始解析 JSON...');
+      aiResponseData = JSON.parse(responseText);
+      console.log('🚀 ~ JSON 解析完成');
+    } catch (jsonError) {
+      console.error('🚀 ~ JSON 解析失敗:', jsonError);
+      console.error('🚀 ~ 原始回應內容:', responseText);
+      throw new Error(`JSON parse error: ${jsonError}`);
+    }
+
     console.log('🚀 ~ aiResponse:', JSON.stringify(aiResponseData));
 
     if (!aiResponseData.success) {
@@ -325,7 +360,9 @@ export const createEventWithAI = async (
     if (toolCalls && toolCalls.length > 0 && toolResults) {
       for (const toolCall of toolCalls) {
         if (toolCall.toolName === 'createEvent') {
-          const toolResult = toolResults.find((tr: { toolCallId: string; result?: any }) => tr.toolCallId === toolCall.toolCallId);
+          const toolResult = toolResults.find(
+            (tr: { toolCallId: string; result?: any }) => tr.toolCallId === toolCall.toolCallId,
+          );
 
           if (toolResult?.result?.success && toolResult.result.event) {
             // 實際執行事件創建
