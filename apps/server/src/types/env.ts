@@ -6,6 +6,7 @@ export interface RequiredBindings {
   LINE_ACCESS_TOKEN: string;
   LINE_CHANNEL_SECRET: string;
   GOOGLE_AI_API_KEY: string;
+  AI_BASE_URL: string;
   DB: D1Database;
   APP_STORAGE: R2Bucket;
   ENV: 'local' | 'production' | 'development';
@@ -27,6 +28,7 @@ export function validateEnvironment(env: any): env is EnvironmentBindings {
     'LINE_ACCESS_TOKEN',
     'LINE_CHANNEL_SECRET',
     'GOOGLE_AI_API_KEY',
+    'AI_BASE_URL',
     'DB',
     'APP_STORAGE',
   ];

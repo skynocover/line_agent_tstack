@@ -2,6 +2,7 @@ import { RPCHandler } from '@orpc/server/fetch';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { CalendarEventController } from './calendar-events/controller';
 import type { Database } from './db';
 import { createDb } from './db';
@@ -16,7 +17,6 @@ import { appRouter } from './routers/index';
 import type { EnvironmentBindings } from './types/env';
 import { assertEnvironment } from './types/env';
 import { handleWebhook } from './webhook/handler';
-import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
 // 重新導出環境變數類型，保持向後兼容
 export type Bindings = EnvironmentBindings;

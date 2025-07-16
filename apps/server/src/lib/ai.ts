@@ -49,6 +49,7 @@ interface AIContext {
   messageId: string;
   controller: CalendarEventController;
   apiKey: string;
+  aiBaseUrl: string;
   timezone?: string;
   groupId?: string;
 }
@@ -261,8 +262,6 @@ interface AIResult {
   error?: string;
 }
 
-const AI_BASE_URL = process.env.AI_BASE_URL;
-
 /**
  * 使用 AI 創建事件的主要函數
  */
@@ -270,14 +269,16 @@ export const createEventWithAI = async (
   userMessage: string,
   context: AIContext,
 ): Promise<AIResult> => {
-  const { userId, controller, apiKey, messageId, groupId } = context;
+  const { userId, controller, apiKey, aiBaseUrl, messageId, groupId } = context;
   const timezone = context.timezone || DEFAULT_TIMEZONE;
 
   try {
     const userLocalDate = getUserLocalDateString(timezone);
 
+    console.log('🚀 ~ aiBaseUrl:', aiBaseUrl);
+
     // Call the AI API instead of using generateText directly
-    const aiResponse = await axios.post<AIApiResponse>(`${AI_BASE_URL}/api/calendar-ai`, {
+    const aiResponse = await axios.post<AIApiResponse>(`${aiBaseUrl}/api/calendar-ai`, {
       userMessage,
       timezone,
       userLocalDate,

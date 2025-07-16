@@ -18,6 +18,7 @@ export interface MessageContext {
   accessToken: string;
   db: Database;
   googleApiKey: string;
+  aiBaseUrl: string;
   fileController?: FileController;
   frontendUrl: string;
 }
@@ -27,7 +28,7 @@ export interface MessageContext {
 // ============================================================================
 
 export const processMessage = async (context: MessageContext): Promise<void> => {
-  const { event, db, accessToken, googleApiKey, fileController, frontendUrl } = context;
+  const { event, db, accessToken, googleApiKey, aiBaseUrl, fileController, frontendUrl } = context;
   const { message, source } = event;
 
   console.log(`處理訊息: ${message.id}, 類型: ${message.type}`);
@@ -74,6 +75,7 @@ export const processMessage = async (context: MessageContext): Promise<void> => 
         source,
         db,
         googleApiKey,
+        aiBaseUrl,
         savedMessageId,
         frontendUrl,
       );
@@ -125,6 +127,7 @@ const processText = async (
   source: any,
   db: Database,
   googleApiKey: string,
+  aiBaseUrl: string,
   savedMessageId: number,
   frontendUrl: string,
 ): Promise<string | null> => {
@@ -148,6 +151,7 @@ const processText = async (
     userId: source.userId,
     controller: calendarEventController,
     apiKey: googleApiKey,
+    aiBaseUrl,
     messageId: message.id,
     groupId: source.groupId || source.roomId,
   });
