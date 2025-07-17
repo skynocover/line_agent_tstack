@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuthStore } from '@/features/auth';
+import { getPageIdentifier } from '@/features/auth/utils';
 import { isInLineApp } from '@/features/line/liff';
 import { usePageContext } from '@/hooks/usePageContext';
 import {
@@ -50,18 +51,7 @@ const RootComponent = () => {
     // 根據是否在 LINE 內決定認證策略
     if (isInLineApp()) {
       // 在 LINE 內建瀏覽器中，執行自動登入
-      // 從當前路徑獲取頁面識別符
-      const getPageId = (pathname: string): string => {
-        const personalMatch = pathname.match(/^\/[^/]+\/(files|todo|settings)$/);
-        if (personalMatch) return personalMatch[1];
-
-        const groupMatch = pathname.match(/^\/group\/([^/]+)\/(files|todo)$/);
-        if (groupMatch) return `group-${groupMatch[1]}-${groupMatch[2]}`;
-
-        return 'home';
-      };
-
-      const pageId = getPageId(window.location.pathname);
+      const pageId = getPageIdentifier(window.location.pathname);
       autoLoginInLineApp(pageId);
     } else {
       // 在外部瀏覽器中，僅刷新認證狀態，不自動登入

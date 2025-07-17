@@ -10,6 +10,12 @@ import {
   handleLogout,
   isInLineApp,
 } from '@/features/line/liff';
+import {
+  clearAuthStorage,
+  isRedirectError,
+  normalizeAuthError,
+  shouldClearAuthOnError,
+} from './utils';
 
 interface AuthState {
   profile: ILiffProfile | null;
@@ -26,7 +32,7 @@ interface AuthState {
 
   // Auth methods
   checkAuth: () => Promise<boolean>;
-  checkAuthWithoutLogin: () => Promise<void>;
+  syncWithLiff: () => Promise<void>;
   autoLoginInLineApp: (pageId?: string) => Promise<void>;
   login: () => Promise<void>;
   loginWithRedirect: (fromPage: string) => Promise<void>;
@@ -34,7 +40,6 @@ interface AuthState {
 
   // Utility methods
   refreshAuthState: () => Promise<void>;
-  forceSyncWithLiff: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -75,42 +80,39 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkAuth: async () => {
-        const currentState = get();
-
         set({ isLoading: true, error: null });
 
         try {
-          // 先檢查 LIFF 登入狀態，而不是盲目相信本地狀態
           const result = await checkLoginStatus();
 
           if (result?.profile && result?.accessToken) {
-            // 如果 LIFF 有登入狀態，更新本地狀態
             get().setAuth(result.profile, result.accessToken);
             return true;
           }
 
-          // 如果 LIFF 沒有登入狀態，不自動登入，讓調用者決定如何處理
           set({ isLoading: false });
           return false;
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : '登入過程發生錯誤';
-          console.error('Auth check failed:', error);
+          const err = error instanceof Error ? error : new Error('登入過程發生錯誤');
+          console.error('Auth check failed:', err);
 
-          get().setError(errorMessage);
-          get().clearAuth();
+          if (shouldClearAuthOnError(err)) {
+            get().clearAuth();
+          }
+
+          get().setError(normalizeAuthError(err));
           return false;
         }
       },
 
-      checkAuthWithoutLogin: async () => {
+      syncWithLiff: async () => {
         const currentState = get();
 
         try {
-          // 直接檢查 LIFF 登入狀態，不依賴本地存儲
           const result = await checkLoginStatus();
 
           if (result?.profile && result?.accessToken) {
-            // 如果 LIFF 有有效的登入狀態，更新本地狀態
+            // 只有在狀態實際不同時才更新
             if (
               !currentState.isAuthenticated ||
               currentState.profile?.userId !== result.profile.userId ||
@@ -118,21 +120,19 @@ export const useAuthStore = create<AuthState>()(
             ) {
               get().setAuth(result.profile, result.accessToken);
             }
-          } else {
-            // 如果 LIFF 沒有登入狀態，清除本地可能過期的狀態
-            if (currentState.profile || currentState.accessToken || currentState.isAuthenticated) {
-              console.log('LIFF not logged in, clearing local auth state');
-              get().clearAuth();
-              localStorage.removeItem('auth-storage');
-            }
+          } else if (currentState.isAuthenticated) {
+            // 只有在本地狀態顯示已認證時才清除
+            console.log('LIFF not logged in, clearing local auth state');
+            get().clearAuth();
+            clearAuthStorage();
           }
         } catch (error) {
           console.warn('Failed to check LIFF login status:', error);
           // 檢查失敗時，為了安全起見，清除本地認證狀態
-          if (currentState.isAuthenticated || currentState.profile || currentState.accessToken) {
+          if (currentState.isAuthenticated) {
             console.log('LIFF check failed, clearing local auth state for safety');
             get().clearAuth();
-            localStorage.removeItem('auth-storage');
+            clearAuthStorage();
           }
         }
       },
@@ -149,17 +149,19 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('登入失敗：無法獲取用戶資訊');
           }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : '登入過程發生錯誤';
-          console.error('Login failed:', error);
+          const err = error instanceof Error ? error : new Error('登入過程發生錯誤');
+          console.error('Login failed:', err);
 
-          // 如果是需要重定向的錯誤，不視為錯誤狀態
-          if (errorMessage === 'Login redirect required') {
+          // 如果是重定向錯誤，不視為錯誤狀態
+          if (isRedirectError(err)) {
             set({ isLoading: false });
             return;
           }
 
-          get().setError(errorMessage);
-          get().clearAuth();
+          get().setError(normalizeAuthError(err));
+          if (shouldClearAuthOnError(err)) {
+            get().clearAuth();
+          }
         }
       },
 
@@ -169,17 +171,19 @@ export const useAuthStore = create<AuthState>()(
         try {
           await handleLoginWithRedirect(fromPage);
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : '登入過程發生錯誤';
-          console.error('Login with redirect failed:', error);
+          const err = error instanceof Error ? error : new Error('登入過程發生錯誤');
+          console.error('Login with redirect failed:', err);
 
-          // 如果是需要重定向的錯誤，不視為錯誤狀態
-          if (errorMessage === 'Login redirect required') {
+          // 如果是重定向錯誤，不視為錯誤狀態
+          if (isRedirectError(err)) {
             set({ isLoading: false });
             return;
           }
 
-          get().setError(errorMessage);
-          get().clearAuth();
+          get().setError(normalizeAuthError(err));
+          if (shouldClearAuthOnError(err)) {
+            get().clearAuth();
+          }
         }
       },
 
@@ -189,9 +193,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           // 立即清除本地狀態，避免 UI 狀態不一致
           get().clearAuth();
-
-          // 清除持久化儲存
-          localStorage.removeItem('auth-storage');
+          clearAuthStorage();
 
           // 執行 LIFF 登出
           handleLogout();
@@ -200,7 +202,7 @@ export const useAuthStore = create<AuthState>()(
           await new Promise((resolve) => setTimeout(resolve, 100));
 
           // 強制同步 LIFF 狀態
-          await get().forceSyncWithLiff();
+          await get().syncWithLiff();
 
           // 如果在 LINE 內，可以選擇關閉視窗
           if (isInLineApp()) {
@@ -213,48 +215,12 @@ export const useAuthStore = create<AuthState>()(
           console.error('Logout failed:', error);
           // 即使登出失敗，也要確保本地狀態已清除
           get().clearAuth();
-          localStorage.removeItem('auth-storage');
+          clearAuthStorage();
         }
       },
 
       refreshAuthState: async () => {
-        await get().checkAuthWithoutLogin();
-      },
-
-      forceSyncWithLiff: async () => {
-        console.log('Forcing sync with LIFF...');
-        const currentState = get();
-
-        try {
-          const result = await checkLoginStatus();
-
-          if (result?.profile && result?.accessToken) {
-            // LIFF 顯示已登入
-            if (!currentState.isAuthenticated) {
-              console.log(
-                'LIFF logged in but local state not authenticated - updating local state',
-              );
-              get().setAuth(result.profile, result.accessToken);
-            }
-          } else {
-            // LIFF 顯示未登入
-            if (currentState.isAuthenticated) {
-              console.log(
-                'LIFF not logged in but local state authenticated - clearing local state',
-              );
-              get().clearAuth();
-              localStorage.removeItem('auth-storage');
-            }
-          }
-        } catch (error) {
-          console.error('Force sync with LIFF failed:', error);
-          // 同步失敗時，為了安全起見，清除本地狀態
-          if (currentState.isAuthenticated) {
-            console.log('Sync failed, clearing local state for safety');
-            get().clearAuth();
-            localStorage.removeItem('auth-storage');
-          }
-        }
+        await get().syncWithLiff();
       },
 
       autoLoginInLineApp: async (pageId = 'home') => {
@@ -270,8 +236,8 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        // 先嘗試無需登入的狀態檢查
-        await get().checkAuthWithoutLogin();
+        // 先嘗試同步 LIFF 狀態
+        await get().syncWithLiff();
 
         // 檢查完後如果仍未認證，則執行自動登入
         const updatedState = get();

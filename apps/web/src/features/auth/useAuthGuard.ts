@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from './authStore';
+import { getPageIdentifier } from './utils';
 
 interface UseAuthGuardOptions {
   /** 需要匹配的用戶 ID */
@@ -14,31 +15,12 @@ interface UseAuthGuardOptions {
   autoLogin?: boolean;
 }
 
-// 根據當前路徑生成頁面標識符
-const getPageIdentifier = (pathname: string): string => {
-  // 個人頁面路由 /:userId/files -> files
-  const personalMatch = pathname.match(/^\/[^/]+\/(files|todo|settings)$/);
-  if (personalMatch) {
-    return personalMatch[1];
-  }
-
-  // 群組頁面路由 /group/:groupId/files -> group-:groupId-files
-  const groupMatch = pathname.match(/^\/group\/([^/]+)\/(files|todo)$/);
-  if (groupMatch) {
-    return `group-${groupMatch[1]}-${groupMatch[2]}`;
-  }
-
-  // 其他路由或首頁
-  return 'home';
-};
-
 export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
   const { requiredUserId, redirectTo = '/', showErrorToast = true, autoLogin = false } = options;
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, isAuthenticated, checkAuth, checkAuthWithoutLogin, loginWithRedirect } =
-    useAuthStore();
+  const { profile, isAuthenticated, checkAuth, syncWithLiff, loginWithRedirect } = useAuthStore();
 
   useEffect(() => {
     const handleAuthCheck = async () => {
@@ -58,9 +40,9 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
         }
       }
 
-      // 如果不需要自動登入，但也沒有認證，檢查本地狀態
+      // 如果不需要自動登入，但也沒有認證，同步 LIFF 狀態
       if (!autoLogin && !isAuthenticated) {
-        checkAuthWithoutLogin();
+        syncWithLiff();
         if (!useAuthStore.getState().isAuthenticated) {
           if (showErrorToast) {
             toast.error('請先登入 LINE 帳號');
@@ -91,7 +73,7 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
     autoLogin,
     navigate,
     checkAuth,
-    checkAuthWithoutLogin,
+    syncWithLiff,
     loginWithRedirect,
     location.pathname,
   ]);
