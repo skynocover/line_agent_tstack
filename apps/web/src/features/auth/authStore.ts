@@ -34,6 +34,7 @@ interface AuthState {
 
   // Utility methods
   refreshAuthState: () => Promise<void>;
+  forceSyncWithLiff: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -110,12 +111,19 @@ export const useAuthStore = create<AuthState>()(
 
           if (result?.profile && result?.accessToken) {
             // 如果 LIFF 有有效的登入狀態，更新本地狀態
-            get().setAuth(result.profile, result.accessToken);
+            if (
+              !currentState.isAuthenticated ||
+              currentState.profile?.userId !== result.profile.userId ||
+              currentState.accessToken !== result.accessToken
+            ) {
+              get().setAuth(result.profile, result.accessToken);
+            }
           } else {
             // 如果 LIFF 沒有登入狀態，清除本地可能過期的狀態
             if (currentState.profile || currentState.accessToken || currentState.isAuthenticated) {
               console.log('LIFF not logged in, clearing local auth state');
               get().clearAuth();
+              localStorage.removeItem('auth-storage');
             }
           }
         } catch (error) {
@@ -124,6 +132,7 @@ export const useAuthStore = create<AuthState>()(
           if (currentState.isAuthenticated || currentState.profile || currentState.accessToken) {
             console.log('LIFF check failed, clearing local auth state for safety');
             get().clearAuth();
+            localStorage.removeItem('auth-storage');
           }
         }
       },
@@ -178,11 +187,20 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
 
         try {
+          // 立即清除本地狀態，避免 UI 狀態不一致
+          get().clearAuth();
+
+          // 清除持久化儲存
+          localStorage.removeItem('auth-storage');
+
           // 執行 LIFF 登出
           handleLogout();
 
-          // 清除本地狀態
-          get().clearAuth();
+          // 稍微等待一下，讓 LIFF 登出完成
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // 強制同步 LIFF 狀態
+          await get().forceSyncWithLiff();
 
           // 如果在 LINE 內，可以選擇關閉視窗
           if (isInLineApp()) {
@@ -191,12 +209,9 @@ export const useAuthStore = create<AuthState>()(
               closeLiffWindow();
             }, 1000);
           }
-
-          // 清除持久化儲存
-          localStorage.removeItem('auth-storage');
         } catch (error) {
           console.error('Logout failed:', error);
-          // 即使登出失敗，也要清除本地狀態
+          // 即使登出失敗，也要確保本地狀態已清除
           get().clearAuth();
           localStorage.removeItem('auth-storage');
         }
@@ -204,6 +219,42 @@ export const useAuthStore = create<AuthState>()(
 
       refreshAuthState: async () => {
         await get().checkAuthWithoutLogin();
+      },
+
+      forceSyncWithLiff: async () => {
+        console.log('Forcing sync with LIFF...');
+        const currentState = get();
+
+        try {
+          const result = await checkLoginStatus();
+
+          if (result?.profile && result?.accessToken) {
+            // LIFF 顯示已登入
+            if (!currentState.isAuthenticated) {
+              console.log(
+                'LIFF logged in but local state not authenticated - updating local state',
+              );
+              get().setAuth(result.profile, result.accessToken);
+            }
+          } else {
+            // LIFF 顯示未登入
+            if (currentState.isAuthenticated) {
+              console.log(
+                'LIFF not logged in but local state authenticated - clearing local state',
+              );
+              get().clearAuth();
+              localStorage.removeItem('auth-storage');
+            }
+          }
+        } catch (error) {
+          console.error('Force sync with LIFF failed:', error);
+          // 同步失敗時，為了安全起見，清除本地狀態
+          if (currentState.isAuthenticated) {
+            console.log('Sync failed, clearing local state for safety');
+            get().clearAuth();
+            localStorage.removeItem('auth-storage');
+          }
+        }
       },
 
       autoLoginInLineApp: async (pageId = 'home') => {

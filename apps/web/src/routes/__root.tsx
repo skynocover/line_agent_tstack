@@ -73,7 +73,7 @@ const RootComponent = () => {
   const handleLogout = async () => {
     await logout();
     setIsSheetOpen(false);
-    // navigate({ to: '/' });
+    navigate({ to: '/' });
   };
 
   // 生成基於當前上下文的導航項目
