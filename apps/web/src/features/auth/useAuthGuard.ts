@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from './authStore';
@@ -14,22 +14,46 @@ interface UseAuthGuardOptions {
   autoLogin?: boolean;
 }
 
+// 根據當前路徑生成頁面標識符
+const getPageIdentifier = (pathname: string): string => {
+  // 個人頁面路由 /:userId/files -> files
+  const personalMatch = pathname.match(/^\/[^/]+\/(files|todo|settings)$/);
+  if (personalMatch) {
+    return personalMatch[1];
+  }
+
+  // 群組頁面路由 /group/:groupId/files -> group-:groupId-files
+  const groupMatch = pathname.match(/^\/group\/([^/]+)\/(files|todo)$/);
+  if (groupMatch) {
+    return `group-${groupMatch[1]}-${groupMatch[2]}`;
+  }
+
+  // 其他路由或首頁
+  return 'home';
+};
+
 export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
   const { requiredUserId, redirectTo = '/', showErrorToast = true, autoLogin = false } = options;
 
   const navigate = useNavigate();
-  const { profile, isAuthenticated, checkAuth, checkAuthWithoutLogin } = useAuthStore();
+  const location = useLocation();
+  const { profile, isAuthenticated, checkAuth, checkAuthWithoutLogin, loginWithRedirect } =
+    useAuthStore();
 
   useEffect(() => {
     const handleAuthCheck = async () => {
       // 如果需要自動登入，嘗試認證
       if (autoLogin && !isAuthenticated) {
-        const success = await checkAuth();
-        if (!success || !profile) {
-          if (showErrorToast) {
-            toast.error('請先登入 LINE 帳號');
+        try {
+          const success = await checkAuth();
+          if (!success || !profile) {
+            // 使用帶有重定向的登入
+            const pageId = getPageIdentifier(location.pathname);
+            await loginWithRedirect(pageId);
+            return;
           }
-          navigate({ to: redirectTo });
+        } catch (error) {
+          // 登入失敗或需要重定向，不做額外處理
           return;
         }
       }
@@ -68,6 +92,8 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
     navigate,
     checkAuth,
     checkAuthWithoutLogin,
+    loginWithRedirect,
+    location.pathname,
   ]);
 
   return {

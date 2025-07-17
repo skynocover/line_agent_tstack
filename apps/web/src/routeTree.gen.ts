@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UserIdTodoRouteImport } from './routes/$userId/todo'
 import { Route as UserIdSettingsRouteImport } from './routes/$userId/settings'
@@ -16,6 +17,11 @@ import { Route as UserIdFilesRouteImport } from './routes/$userId/files'
 import { Route as GroupGroupIdTodoRouteImport } from './routes/group/$groupId/todo'
 import { Route as GroupGroupIdFilesRouteImport } from './routes/group/$groupId/files'
 
+const CallbackRoute = CallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -49,6 +55,7 @@ const GroupGroupIdFilesRoute = GroupGroupIdFilesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/callback': typeof CallbackRoute
   '/$userId/files': typeof UserIdFilesRoute
   '/$userId/settings': typeof UserIdSettingsRoute
   '/$userId/todo': typeof UserIdTodoRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/callback': typeof CallbackRoute
   '/$userId/files': typeof UserIdFilesRoute
   '/$userId/settings': typeof UserIdSettingsRoute
   '/$userId/todo': typeof UserIdTodoRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/callback': typeof CallbackRoute
   '/$userId/files': typeof UserIdFilesRoute
   '/$userId/settings': typeof UserIdSettingsRoute
   '/$userId/todo': typeof UserIdTodoRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/callback'
     | '/$userId/files'
     | '/$userId/settings'
     | '/$userId/todo'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/callback'
     | '/$userId/files'
     | '/$userId/settings'
     | '/$userId/todo'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/callback'
     | '/$userId/files'
     | '/$userId/settings'
     | '/$userId/todo'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CallbackRoute: typeof CallbackRoute
   UserIdFilesRoute: typeof UserIdFilesRoute
   UserIdSettingsRoute: typeof UserIdSettingsRoute
   UserIdTodoRoute: typeof UserIdTodoRoute
@@ -110,6 +123,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/callback': {
+      id: '/callback'
+      path: '/callback'
+      fullPath: '/callback'
+      preLoaderRoute: typeof CallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CallbackRoute: CallbackRoute,
   UserIdFilesRoute: UserIdFilesRoute,
   UserIdSettingsRoute: UserIdSettingsRoute,
   UserIdTodoRoute: UserIdTodoRoute,

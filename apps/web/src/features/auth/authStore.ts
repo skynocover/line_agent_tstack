@@ -6,6 +6,7 @@ import {
   checkLoginStatus,
   closeLiffWindow,
   handleLogin,
+  handleLoginWithRedirect,
   handleLogout,
   isInLineApp,
 } from '@/features/line/liff';
@@ -26,8 +27,9 @@ interface AuthState {
   // Auth methods
   checkAuth: () => Promise<boolean>;
   checkAuthWithoutLogin: () => Promise<void>;
-  autoLoginInLineApp: () => Promise<void>;
+  autoLoginInLineApp: (pageId?: string) => Promise<void>;
   login: () => Promise<void>;
+  loginWithRedirect: (fromPage: string) => Promise<void>;
   logout: () => Promise<void>;
 
   // Utility methods
@@ -86,26 +88,12 @@ export const useAuthStore = create<AuthState>()(
             return true;
           }
 
-          // 如果 LIFF 沒有登入狀態，嘗試登入
-          const loginResult = await handleLogin();
-
-          if (loginResult?.profile && loginResult?.accessToken) {
-            get().setAuth(loginResult.profile, loginResult.accessToken);
-            return true;
-          }
-
-          get().setError('登入失敗：無法獲取用戶資訊');
-          get().clearAuth();
+          // 如果 LIFF 沒有登入狀態，不自動登入，讓調用者決定如何處理
+          set({ isLoading: false });
           return false;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '登入過程發生錯誤';
           console.error('Auth check failed:', error);
-
-          // 如果是需要重定向的錯誤，不視為錯誤狀態
-          if (errorMessage === 'Login redirect required') {
-            set({ isLoading: false });
-            return false;
-          }
 
           get().setError(errorMessage);
           get().clearAuth();
@@ -166,6 +154,26 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      loginWithRedirect: async (fromPage: string) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          await handleLoginWithRedirect(fromPage);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '登入過程發生錯誤';
+          console.error('Login with redirect failed:', error);
+
+          // 如果是需要重定向的錯誤，不視為錯誤狀態
+          if (errorMessage === 'Login redirect required') {
+            set({ isLoading: false });
+            return;
+          }
+
+          get().setError(errorMessage);
+          get().clearAuth();
+        }
+      },
+
       logout: async () => {
         set({ isLoading: true });
 
@@ -198,7 +206,7 @@ export const useAuthStore = create<AuthState>()(
         await get().checkAuthWithoutLogin();
       },
 
-      autoLoginInLineApp: async () => {
+      autoLoginInLineApp: async (pageId = 'home') => {
         // 只在 LINE 內建瀏覽器中執行自動登入
         if (!isInLineApp()) {
           return;
@@ -218,7 +226,7 @@ export const useAuthStore = create<AuthState>()(
         const updatedState = get();
         if (!updatedState.isAuthenticated) {
           try {
-            await get().login();
+            await get().loginWithRedirect(pageId);
           } catch (error) {
             console.warn('Auto login in LINE app failed:', error);
             // 自動登入失敗不視為錯誤，用戶可以手動登入

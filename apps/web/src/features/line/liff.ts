@@ -61,13 +61,19 @@ const isInLineApp = () => {
 };
 
 // 處理登入
-const handleLogin = async (): Promise<{ profile: ILiffProfile; accessToken: string }> => {
+const handleLogin = async (
+  redirectUri?: string,
+): Promise<{ profile: ILiffProfile; accessToken: string }> => {
   try {
     await initLiff();
 
     if (!liff.isLoggedIn()) {
       // 如果在 LINE 內，直接登入；如果在外部瀏覽器，會跳轉到 LINE 登入頁面
-      liff.login();
+      if (redirectUri) {
+        liff.login({ redirectUri });
+      } else {
+        liff.login();
+      }
       // 在外部瀏覽器中，這行代碼不會執行到，因為會跳轉到 LINE
       throw new Error('Login redirect required');
     }
@@ -153,9 +159,26 @@ const getLiffContext = () => {
   };
 };
 
+// 處理帶有重定向的登入
+const handleLoginWithRedirect = async (fromPage: string): Promise<void> => {
+  try {
+    await initLiff();
+
+    if (!liff.isLoggedIn()) {
+      const redirectUri = `${window.location.origin}/callback?from=${fromPage}`;
+      liff.login({ redirectUri });
+      throw new Error('Login redirect required');
+    }
+  } catch (error) {
+    console.error('Login with redirect failed:', error);
+    throw error;
+  }
+};
+
 export {
   initLiff,
   handleLogin,
+  handleLoginWithRedirect,
   handleLogout,
   checkLoginStatus,
   closeLiffWindow,

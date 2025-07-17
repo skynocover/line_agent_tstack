@@ -50,7 +50,19 @@ const RootComponent = () => {
     // 根據是否在 LINE 內決定認證策略
     if (isInLineApp()) {
       // 在 LINE 內建瀏覽器中，執行自動登入
-      autoLoginInLineApp();
+      // 從當前路徑獲取頁面識別符
+      const getPageId = (pathname: string): string => {
+        const personalMatch = pathname.match(/^\/[^/]+\/(files|todo|settings)$/);
+        if (personalMatch) return personalMatch[1];
+        
+        const groupMatch = pathname.match(/^\/group\/([^/]+)\/(files|todo)$/);
+        if (groupMatch) return `group-${groupMatch[1]}-${groupMatch[2]}`;
+        
+        return 'home';
+      };
+      
+      const pageId = getPageId(window.location.pathname);
+      autoLoginInLineApp(pageId);
     } else {
       // 在外部瀏覽器中，僅刷新認證狀態，不自動登入
       refreshAuthState();
@@ -205,7 +217,8 @@ const RootComponent = () => {
                   size="sm"
                   onClick={async () => {
                     try {
-                      await useAuthStore.getState().login();
+                      // 使用帶有重定向的登入，首頁使用 'home' 作為頁面標識符
+                      await useAuthStore.getState().loginWithRedirect('home');
                     } catch (error) {
                       console.error('Login failed:', error);
                     }
