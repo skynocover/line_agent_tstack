@@ -29,6 +29,7 @@ export const generateICS = (
       allDay: event.allDay || false,
       created: event.createdAt ? new Date(event.createdAt) : new Date(),
       lastModified: event.createdAt ? new Date(event.createdAt) : new Date(),
+      timezone: 'Asia/Taipei',
     });
   }
 
