@@ -13,6 +13,8 @@ import { CalendarSubscription } from '@/components/calendar-subscription';
 import { EventCalendar } from '@/components/event-calendar';
 import { useCalendarContext } from '@/components/event-calendar/calendar-context';
 import type { CalendarEvent } from '@/components/event-calendar/types';
+import { useAuthStore } from '@/features/auth/authStore';
+import { useAuthGuard } from '@/features/auth/useAuthGuard';
 import { ExpiredTodoList } from '@/features/todo/expiredtodo';
 import { useTodos } from '@/features/todo/hooks';
 
@@ -23,6 +25,13 @@ export const Route = createFileRoute('/group/$groupId/todo')({
 function RouteComponent() {
   const { groupId } = useParams({ from: '/group/$groupId/todo' });
   const { currentDate, view } = useCalendarContext();
+  const { isAuthenticated } = useAuthStore();
+
+  // 群組頁面現在也需要登入
+  const { isLoading: authLoading } = useAuthGuard({
+    autoLogin: true,
+    showErrorToast: true,
+  });
 
   const getTimeRange = useCallback(() => {
     let startTime: Date;
@@ -75,6 +84,20 @@ function RouteComponent() {
     },
     [handleEventUpdate],
   );
+
+  // 等待認證完成
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="flex items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-blue-600 border-b-2" />
+            <span className="ml-3">認證中...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto space-y-6 py-4">

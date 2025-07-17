@@ -56,6 +56,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuthStore } from '@/features/auth/authStore';
+import { useAuthGuard } from '@/features/auth/useAuthGuard';
 import { useFiles } from '@/features/files/hooks';
 import {
   formatFileSize,
@@ -147,6 +148,12 @@ const storageBaseUrl = import.meta.env.VITE_FILE_BASE_URL;
 const GroupFilesPageContent = () => {
   const { groupId } = Route.useParams();
   const { isAuthenticated, profile } = useAuthStore();
+
+  // 群組頁面現在也需要登入
+  const { isLoading: authLoading } = useAuthGuard({
+    autoLogin: true,
+    showErrorToast: true,
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -255,11 +262,6 @@ const GroupFilesPageContent = () => {
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isAuthenticated) {
-      toast.error('請先登入後才能上傳檔案');
-      return;
-    }
-
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -279,11 +281,6 @@ const GroupFilesPageContent = () => {
     event.preventDefault();
     setIsDragOver(false);
 
-    if (!isAuthenticated) {
-      toast.error('請先登入後才能上傳檔案');
-      return;
-    }
-
     const files = event.dataTransfer.files;
     if (!files || files.length === 0) return;
 
@@ -296,14 +293,12 @@ const GroupFilesPageContent = () => {
 
   const handleDragOver = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
-    if (isAuthenticated) {
-      setIsDragOver(true);
-    }
+    setIsDragOver(true);
   };
 
   const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
-    if (isAuthenticated && !event.currentTarget.contains(event.relatedTarget as Node)) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
       setIsDragOver(false);
     }
   };
@@ -399,6 +394,20 @@ const GroupFilesPageContent = () => {
     );
   };
 
+  // 等待認證完成
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="flex items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-blue-600 border-b-2" />
+            <span className="ml-3">認證中...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -439,14 +448,12 @@ const GroupFilesPageContent = () => {
             <div className="flex flex-col items-end gap-2">
               <Button
                 onClick={handleUploadClick}
-                disabled={!isAuthenticated}
                 className="flex w-full items-center gap-2 sm:w-auto"
-                title={!isAuthenticated ? '請先登入後才能上傳檔案' : '上傳檔案'}
+                title="上傳檔案"
               >
                 <Upload className="h-4 w-4" />
                 上傳檔案
               </Button>
-              {!isAuthenticated && <p className="text-gray-500 text-sm">請先登入後才能上傳檔案</p>}
             </div>
             <input
               ref={fileInputRef}
@@ -454,7 +461,6 @@ const GroupFilesPageContent = () => {
               multiple
               onChange={handleFileChange}
               className="hidden"
-              disabled={!isAuthenticated}
             />
           </div>
         </div>
@@ -524,10 +530,7 @@ const GroupFilesPageContent = () => {
               {searchTerm ? '沒有找到符合條件的檔案' : '此群組還沒有任何檔案'}
             </p>
             <p className="text-sm">
-              {!searchTerm &&
-                (isAuthenticated
-                  ? '點擊上方的「上傳檔案」按鈕或通過 LINE Bot 上傳檔案'
-                  : '檔案可通過 LINE Bot 上傳，或請先登入使用上傳功能')}
+              {!searchTerm && '點擊上方的「上傳檔案」按鈕或通過 LINE Bot 上傳檔案'}
             </p>
           </div>
         ) : (
@@ -585,7 +588,7 @@ const GroupFilesPageContent = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {files.map((file) => {
+                  {files.map((file: any) => {
                     const category = getFileCategoryFromMimeType(file.mimeType);
                     const displayName = removeFileExtension(file.fileName);
 
@@ -679,7 +682,7 @@ const GroupFilesPageContent = () => {
 
             {/* Mobile Card View */}
             <div className="block space-y-3 sm:hidden">
-              {files.map((file) => (
+              {files.map((file: any) => (
                 <MobileFileCard key={file.fileId} file={file} />
               ))}
             </div>

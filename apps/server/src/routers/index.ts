@@ -2,7 +2,6 @@ import { z } from 'zod';
 import type { calendarEvents } from '@/db/schema';
 import { CalendarEventController } from '../calendar-events/controller';
 import { FileController } from '../files/controller';
-import { withConditionalAuth, withUserAuth } from '../lib/auth-helpers';
 import {
   BaseEventSchema,
   GroupEventsQuerySchema,
@@ -134,49 +133,65 @@ export const appRouter = {
   }),
 
   // Calendar Events
-  getEvents: publicProcedure.input(UserEventsQuerySchema).handler(
-    withUserAuth(async (input, context) => {
-      try {
-        const controller = new CalendarEventController(context.db);
-        return await controller.getUserEvents(
-          input.userId,
-          input.page,
-          input.limit,
-          'start',
-          'asc',
-          undefined,
-          input.startTime,
-          input.endTime,
-        );
-      } catch (error) {
-        const errorInfo = parseError(error, 'fetch events');
-        const enhancedError = new Error(errorInfo.message);
-        (enhancedError as any).code = errorInfo.code;
-        throw enhancedError;
-      }
-    }),
-  ),
+  getEvents: publicProcedure.input(UserEventsQuerySchema).handler(async ({ input, context }) => {
+    // 驗證用戶已登入
+    if (!context.liffUser) {
+      throw new Error('Authentication required');
+    }
 
-  createEvent: publicProcedure.input(CreateEventSchema).handler(
-    withConditionalAuth(async (input, context) => {
-      try {
-        const controller = new CalendarEventController(context.db);
-        const eventData = {
-          ...input,
-          start: new Date(input.start),
-          end: new Date(input.end),
-        };
-        return await controller.createEvent(eventData);
-      } catch (error) {
-        const errorInfo = parseError(error, 'create event');
-        const enhancedError = new Error(errorInfo.message);
-        (enhancedError as any).code = errorInfo.code;
-        throw enhancedError;
-      }
-    }),
-  ),
+    // 驗證用戶權限
+    if (context.liffUser.userId !== input.userId) {
+      throw new Error('Unauthorized: User ID mismatch');
+    }
+
+    try {
+      const controller = new CalendarEventController(context.db);
+      return await controller.getUserEvents(
+        input.userId,
+        input.page,
+        input.limit,
+        'start',
+        'asc',
+        undefined,
+        input.startTime,
+        input.endTime,
+      );
+    } catch (error) {
+      const errorInfo = parseError(error, 'fetch events');
+      const enhancedError = new Error(errorInfo.message);
+      (enhancedError as any).code = errorInfo.code;
+      throw enhancedError;
+    }
+  }),
+
+  createEvent: publicProcedure.input(CreateEventSchema).handler(async ({ input, context }) => {
+    // 驗證用戶已登入
+    if (!context.liffUser) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const controller = new CalendarEventController(context.db);
+      const eventData = {
+        ...input,
+        start: new Date(input.start),
+        end: new Date(input.end),
+      };
+      return await controller.createEvent(eventData);
+    } catch (error) {
+      const errorInfo = parseError(error, 'create event');
+      const enhancedError = new Error(errorInfo.message);
+      (enhancedError as any).code = errorInfo.code;
+      throw enhancedError;
+    }
+  }),
 
   updateEvent: publicProcedure.input(UpdateEventSchema).handler(async ({ input, context }) => {
+    // 驗證用戶已登入
+    if (!context.liffUser) {
+      throw new Error('Authentication required');
+    }
+
     const controller = new CalendarEventController(context.db);
 
     // 檢查是否為群組事件
@@ -185,7 +200,7 @@ export const appRouter = {
 
     if (!isGroupEvent) {
       // 個人事件需要驗證用戶權限
-      if (!context.liffUser || context.liffUser.userId !== input.userId) {
+      if (context.liffUser.userId !== input.userId) {
         throw new Error('Unauthorized: User ID mismatch');
       }
     }
@@ -216,6 +231,11 @@ export const appRouter = {
   }),
 
   deleteEvent: publicProcedure.input(DeleteEventSchema).handler(async ({ input, context }) => {
+    // 驗證用戶已登入
+    if (!context.liffUser) {
+      throw new Error('Authentication required');
+    }
+
     const controller = new CalendarEventController(context.db);
 
     // 檢查是否為群組事件
@@ -224,7 +244,7 @@ export const appRouter = {
 
     if (!isGroupEvent) {
       // 個人事件需要驗證用戶權限
-      if (!context.liffUser || context.liffUser.userId !== input.userId) {
+      if (context.liffUser.userId !== input.userId) {
         throw new Error('Unauthorized: User ID mismatch');
       }
     }
@@ -407,6 +427,11 @@ export const appRouter = {
   getGroupFiles: publicProcedure
     .input(GroupFilesQuerySchema)
     .handler(async ({ input, context }) => {
+      // 驗證用戶已登入
+      if (!context.liffUser) {
+        throw new Error('Authentication required');
+      }
+
       const controller = new FileController(context.db, context.env.APP_STORAGE);
 
       try {
@@ -426,6 +451,11 @@ export const appRouter = {
   updateGroupFileName: publicProcedure
     .input(UpdateGroupFileNameSchema)
     .handler(async ({ input, context }) => {
+      // 驗證用戶已登入
+      if (!context.liffUser) {
+        throw new Error('Authentication required');
+      }
+
       const controller = new FileController(context.db, context.env.APP_STORAGE);
 
       try {
@@ -446,6 +476,11 @@ export const appRouter = {
   deleteGroupFile: publicProcedure
     .input(DeleteGroupFileSchema)
     .handler(async ({ input, context }) => {
+      // 驗證用戶已登入
+      if (!context.liffUser) {
+        throw new Error('Authentication required');
+      }
+
       const controller = new FileController(context.db, context.env.APP_STORAGE);
 
       try {
@@ -518,6 +553,11 @@ export const appRouter = {
   getGroupEvents: publicProcedure
     .input(GroupEventsQuerySchema)
     .handler(async ({ input, context }) => {
+      // 驗證用戶已登入
+      if (!context.liffUser) {
+        throw new Error('Authentication required');
+      }
+
       const controller = new CalendarEventController(context.db);
 
       try {
@@ -539,6 +579,11 @@ export const appRouter = {
   getGroupIncompleteExpiredEvents: publicProcedure
     .input(GetGroupIncompleteExpiredEventsSchema)
     .handler(async ({ input, context }) => {
+      // 驗證用戶已登入
+      if (!context.liffUser) {
+        throw new Error('Authentication required');
+      }
+
       const controller = new CalendarEventController(context.db);
 
       try {

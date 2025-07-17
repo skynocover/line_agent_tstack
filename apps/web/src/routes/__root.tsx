@@ -54,13 +54,13 @@ const RootComponent = () => {
       const getPageId = (pathname: string): string => {
         const personalMatch = pathname.match(/^\/[^/]+\/(files|todo|settings)$/);
         if (personalMatch) return personalMatch[1];
-        
+
         const groupMatch = pathname.match(/^\/group\/([^/]+)\/(files|todo)$/);
         if (groupMatch) return `group-${groupMatch[1]}-${groupMatch[2]}`;
-        
+
         return 'home';
       };
-      
+
       const pageId = getPageId(window.location.pathname);
       autoLoginInLineApp(pageId);
     } else {
@@ -73,7 +73,7 @@ const RootComponent = () => {
   const handleLogout = async () => {
     await logout();
     setIsSheetOpen(false);
-    navigate({ to: '/' });
+    // navigate({ to: '/' });
   };
 
   // 生成基於當前上下文的導航項目

@@ -123,17 +123,17 @@ const AUTH_STRATEGY = {
 } as const;
 
 const API_AUTH_MAP: Record<string, (typeof AUTH_STRATEGY)[keyof typeof AUTH_STRATEGY]> = {
-  // 群組相關API - 無需認證
-  getGroupEvents: AUTH_STRATEGY.NONE,
-  getGroupFiles: AUTH_STRATEGY.NONE,
-  updateGroupFileName: AUTH_STRATEGY.NONE,
-  deleteGroupFile: AUTH_STRATEGY.NONE,
-  getGroupIncompleteExpiredEvents: AUTH_STRATEGY.NONE,
+  // 群組相關API - 現在需要認證
+  getGroupEvents: AUTH_STRATEGY.REQUIRED,
+  getGroupFiles: AUTH_STRATEGY.REQUIRED,
+  updateGroupFileName: AUTH_STRATEGY.REQUIRED,
+  deleteGroupFile: AUTH_STRATEGY.REQUIRED,
+  getGroupIncompleteExpiredEvents: AUTH_STRATEGY.REQUIRED,
 
-  // 混合上下文API - 可選認證（內部處理）
-  createEvent: AUTH_STRATEGY.OPTIONAL,
-  updateEvent: AUTH_STRATEGY.OPTIONAL,
-  deleteEvent: AUTH_STRATEGY.OPTIONAL,
+  // 混合上下文API - 必須認證（統一處理）
+  createEvent: AUTH_STRATEGY.REQUIRED,
+  updateEvent: AUTH_STRATEGY.REQUIRED,
+  deleteEvent: AUTH_STRATEGY.REQUIRED,
 
   // 檔案上傳 - 必須認證
   uploadFile: AUTH_STRATEGY.REQUIRED,
@@ -158,7 +158,6 @@ app.use('/rpc/*', async (c, next) => {
         return await next();
       case AUTH_STRATEGY.OPTIONAL:
         return await verifyOrpcAuthOptional(c, next);
-      case AUTH_STRATEGY.REQUIRED:
       default:
         return await verifyOrpcAuth(c, next);
     }
