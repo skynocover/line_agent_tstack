@@ -111,7 +111,7 @@ app.use(
 
 app.use('*', async (c, next) => {
   c.set('db', createDb(c.env.DB));
-  await next();
+  return await next();
 });
 
 // Apply ORPC authentication middleware conditionally
@@ -148,27 +148,23 @@ app.use('/rpc/*', async (c, next) => {
     const method = url.pathname.split('/').pop();
 
     if (!method) {
-      await verifyOrpcAuth(c, next);
-      return;
+      return await verifyOrpcAuth(c, next);
     }
 
     const authStrategy = API_AUTH_MAP[method] || AUTH_STRATEGY.REQUIRED;
 
     switch (authStrategy) {
       case AUTH_STRATEGY.NONE:
-        await next();
-        break;
+        return await next();
       case AUTH_STRATEGY.OPTIONAL:
-        await verifyOrpcAuthOptional(c, next);
-        break;
+        return await verifyOrpcAuthOptional(c, next);
       case AUTH_STRATEGY.REQUIRED:
       default:
-        await verifyOrpcAuth(c, next);
-        break;
+        return await verifyOrpcAuth(c, next);
     }
   } catch {
     // 如果URL解析失敗，使用必須認證
-    await verifyOrpcAuth(c, next);
+    return await verifyOrpcAuth(c, next);
   }
 });
 

@@ -40,7 +40,7 @@ const verifyLiffAccessToken = async (c: Context<AppContext>, next: Next) => {
     const liffUser = await verifyLiffToken(accessToken);
 
     c.set('liffUser', liffUser);
-    await next();
+    return await next();
   } catch (error) {
     console.error('LIFF token verification failed:', error);
     const message = error instanceof Error ? error.message : 'Invalid access token';
@@ -61,7 +61,7 @@ const verifyUserIdMatch = async (c: Context<AppContext>, next: Next) => {
     return c.json({ error: 'Unauthorized: User ID mismatch' }, 403);
   }
 
-  await next();
+  return await next();
 };
 
 // ORPC 專用的驗證中間件
@@ -72,7 +72,7 @@ const verifyOrpcAuth = async (c: Context<AppContext>, next: Next) => {
     const liffUser = await verifyLiffToken(accessToken);
 
     c.set('liffUser', liffUser);
-    await next();
+    return await next();
   } catch (error) {
     console.error('ORPC auth verification failed:', error);
 
@@ -101,21 +101,20 @@ const verifyOrpcAuthOptional = async (c: Context<AppContext>, next: Next) => {
     // 如果沒有提供Authorization header，設定空的liffUser並繼續
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       c.set('liffUser', undefined);
-      await next();
-      return;
+      return await next();
     }
 
     const accessToken = extractAccessToken(authHeader);
     const liffUser = await verifyLiffToken(accessToken);
 
     c.set('liffUser', liffUser);
-    await next();
+    return await next();
   } catch (error) {
     console.error('ORPC optional auth verification failed:', error);
 
     // 對於可選認證，如果驗證失敗，設定空的liffUser並繼續
     c.set('liffUser', undefined);
-    await next();
+    return await next();
   }
 };
 
