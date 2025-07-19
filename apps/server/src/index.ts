@@ -227,8 +227,9 @@ app.get('/ics/:userId', async (c) => {
     c.header('Content-Type', 'text/calendar; charset=utf-8');
     // 清理檔案名稱，移除可能有問題的字符
     const safeFileName = displayName.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-    c.header('Content-Disposition', `attachment; filename="${safeFileName}-calendar.ics"`);
+    c.header('Content-Disposition', `inline; filename="${safeFileName}-calendar.ics"`);
     c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    c.header('X-Robots-Tag', 'noindex, nofollow');
 
     return c.text(icsContent);
   } catch (error) {
@@ -259,8 +260,9 @@ app.get('/ics/group/:groupId', async (c) => {
     c.header('Content-Type', 'text/calendar; charset=utf-8');
     // 清理檔案名稱，移除可能有問題的字符
     const safeFileName = displayName.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-    c.header('Content-Disposition', `attachment; filename="${safeFileName}-calendar.ics"`);
+    c.header('Content-Disposition', `inline; filename="${safeFileName}-calendar.ics"`);
     c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    c.header('X-Robots-Tag', 'noindex, nofollow');
 
     return c.text(icsContent);
   } catch (error) {

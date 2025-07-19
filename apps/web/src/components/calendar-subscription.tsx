@@ -30,7 +30,6 @@ export const CalendarSubscription = ({
   variant = 'default',
 }: CalendarSubscriptionProps) => {
   const [copiedIcsUrl, setCopiedIcsUrl] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
 
   // 判斷是否為群組模式
   const isGroupMode = !!groupId;
@@ -41,7 +40,7 @@ export const CalendarSubscription = ({
   }
 
   // ICS URL - 根據模式生成不同路徑
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787';
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace('https://', 'webcal://');
   const icsUrl = isGroupMode ? `${apiBaseUrl}/ics/group/${groupId}` : `${apiBaseUrl}/ics/${userId}`;
   const platform = getPlatformInfo();
 
@@ -58,9 +57,8 @@ export const CalendarSubscription = ({
   // 各種日曆訂閱連結
   const calendarUrls = {
     google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(icsUrl)}`,
-    apple: icsUrl.replace('http://', 'webcal://').replace('https://', 'webcal://'),
+    apple: icsUrl,
     outlook: `https://outlook.live.com/calendar/0/addcalendar?url=${encodeURIComponent(icsUrl)}`,
-    yahoo: `https://calendar.yahoo.com/?v=60&TITLE=${config.yahooTitle}&URL=${encodeURIComponent(icsUrl)}`,
   };
 
   // 日曆應用配置
