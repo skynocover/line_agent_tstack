@@ -1,5 +1,5 @@
 import { RPCHandler } from '@orpc/server/fetch';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
@@ -205,27 +205,36 @@ app.get('/echo', (c) => {
   return c.text(`Hello ${name}`);
 });
 
-app.get('/ics/:userId', async (c) => {
-  const userId = c.req.param('userId');
+// Shared ICS handler function
+const handleICSRequest = async (
+  c: Context<AppContext>,
+  entityId: string,
+  entityType: 'user' | 'group',
+) => {
   const db = c.get('db');
 
   try {
     const calendarEventController = new CalendarEventController(db);
-    const events = await calendarEventController.getEventsByUserId(userId);
 
-    // 獲取用戶真實名稱
-    let displayName = userId;
+    // Fetch events based on entity type
+    const events =
+      entityType === 'user'
+        ? await calendarEventController.getEventsByUserId(entityId)
+        : await calendarEventController.getGroupEventsByGroupId(entityId);
+
+    // Get display name from LINE API
+    let displayName = entityType === 'user' ? entityId : `群組 ${entityId}`;
     try {
       const lineApiService = createLineApiService(c.env.LINE_ACCESS_TOKEN);
-      displayName = await lineApiService.getDisplayName(userId, 'user');
+      displayName = await lineApiService.getDisplayName(entityId, entityType);
     } catch (error) {
-      console.warn('Failed to get user display name, using userId:', error);
+      console.warn(`Failed to get ${entityType} display name, using ${entityType}Id:`, error);
     }
 
-    const icsContent = generateICS(events, userId, displayName);
+    const icsContent = generateICS(events, entityId, displayName);
 
+    // Set response headers
     c.header('Content-Type', 'text/calendar; charset=utf-8');
-    // 清理檔案名稱，移除可能有問題的字符
     const safeFileName = displayName.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
     c.header('Content-Disposition', `inline; filename="${safeFileName}-calendar.ics"`);
     c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -233,42 +242,19 @@ app.get('/ics/:userId', async (c) => {
 
     return c.text(icsContent);
   } catch (error) {
-    console.error('Error generating ICS:', error);
-    return c.json({ error: 'Failed to generate ICS file' }, 500);
+    console.error(`Error generating ${entityType} ICS:`, error);
+    return c.json({ error: `Failed to generate ${entityType} ICS file` }, 500);
   }
+};
+
+app.get('/ics/:userId', async (c) => {
+  const userId = c.req.param('userId');
+  return handleICSRequest(c, userId, 'user');
 });
 
 app.get('/ics/group/:groupId', async (c) => {
   const groupId = c.req.param('groupId');
-  const db = c.get('db');
-
-  try {
-    const calendarEventController = new CalendarEventController(db);
-    const events = await calendarEventController.getGroupEventsByGroupId(groupId);
-
-    // 獲取群組真實名稱
-    let displayName = `群組 ${groupId}`;
-    try {
-      const lineApiService = createLineApiService(c.env.LINE_ACCESS_TOKEN);
-      displayName = await lineApiService.getDisplayName(groupId, 'group');
-    } catch (error) {
-      console.warn('Failed to get group display name, using groupId:', error);
-    }
-
-    const icsContent = generateICS(events, groupId, displayName);
-
-    c.header('Content-Type', 'text/calendar; charset=utf-8');
-    // 清理檔案名稱，移除可能有問題的字符
-    const safeFileName = displayName.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-    c.header('Content-Disposition', `inline; filename="${safeFileName}-calendar.ics"`);
-    c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-    c.header('X-Robots-Tag', 'noindex, nofollow');
-
-    return c.text(icsContent);
-  } catch (error) {
-    console.error('Error generating group ICS:', error);
-    return c.json({ error: 'Failed to generate group ICS file' }, 500);
-  }
+  return handleICSRequest(c, groupId, 'group');
 });
 
 // File storage route for local development only

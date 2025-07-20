@@ -87,7 +87,7 @@ function RouteComponent() {
       <div className="container mx-auto space-y-6 py-4">
         <div className="mx-auto w-full max-w-[1200px] space-y-6">
           {/* Calendar Subscription Section */}
-          <CalendarSubscription userId={userId} variant="compact" />
+          <CalendarSubscription userId={userId} />
 
           {/* Expired Incomplete Todos Section */}
           <ExpiredTodoList

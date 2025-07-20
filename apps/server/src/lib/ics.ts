@@ -1,4 +1,4 @@
-import ical, { type ICalCalendarMethod } from 'ical-generator';
+import ical, { ICalCalendarMethod, ICalEventClass, ICalEventTransparency } from 'ical-generator';
 import type { calendarEvents } from '../db/schema';
 
 export const generateICS = (
@@ -17,9 +17,9 @@ export const generateICS = (
       product: 'Calendar',
       language: 'EN',
     },
-    method: 'PUBLISH' as ICalCalendarMethod,
+    method: ICalCalendarMethod.PUBLISH,
     timezone: 'Asia/Taipei',
-    // ttl: 60 * 60, // 1小時快取時間
+    x: [{ key: 'X-WR-TIMEZONE', value: 'Asia/Taipei' }],
   });
 
   for (const event of events) {
@@ -38,6 +38,8 @@ export const generateICS = (
       created: event.createdAt ? new Date(event.createdAt) : new Date(),
       lastModified: event.createdAt ? new Date(event.createdAt) : new Date(),
       timezone: 'Asia/Taipei',
+      transparency: ICalEventTransparency.TRANSPARENT,
+      class: ICalEventClass.PUBLIC,
     });
   }
 
