@@ -40,6 +40,7 @@ export const generateICS = (
       timezone: 'Asia/Taipei',
       transparency: ICalEventTransparency.TRANSPARENT,
       class: ICalEventClass.PUBLIC,
+      floating: false, // 時間是絕對的
     });
   }
 
