@@ -18,8 +18,8 @@ export const generateICS = (
       language: 'EN',
     },
     method: ICalCalendarMethod.PUBLISH,
-    timezone: 'Asia/Taipei',
-    x: [{ key: 'X-WR-TIMEZONE', value: 'Asia/Taipei' }],
+    // timezone: 'Asia/Taipei',
+    // x: [{ key: 'X-WR-TIMEZONE', value: 'Asia/Taipei' }],
   });
 
   for (const event of events) {
@@ -37,10 +37,10 @@ export const generateICS = (
       allDay: event.allDay || false,
       created: event.createdAt ? new Date(event.createdAt) : new Date(),
       lastModified: event.createdAt ? new Date(event.createdAt) : new Date(),
-      timezone: 'Asia/Taipei',
+      // timezone: 'Asia/Taipei',
       transparency: ICalEventTransparency.TRANSPARENT,
       class: ICalEventClass.PUBLIC,
-      floating: false, // 時間是絕對的
+      // floating: false, // 時間是絕對的
     });
   }
 
