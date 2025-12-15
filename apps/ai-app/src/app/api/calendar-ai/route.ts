@@ -6,7 +6,7 @@ import { createEventPrompt } from '../../../lib/prompts/createEventPrompt';
 
 const DEFAULT_TIMEZONE = 'Asia/Taipei';
 const DEFAULT_EVENT_DURATION_HOURS = 1;
-const AI_MODEL = 'gemini-2.0-flash-exp';
+const AI_MODEL = 'gemini-2.0-flash';
 
 // Event creation schema
 const createEventSchema = z.object({
