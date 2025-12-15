@@ -1,12 +1,14 @@
-import { tool } from 'ai';
-import axios from 'axios';
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateText, tool } from 'ai';
 import { z } from 'zod';
 import type { CalendarEventController } from '../calendar-events/controller';
 import type { calendarEvents, NewCalendarEvent } from '../db/schema';
 import { parseError } from './enhanced-error-handler';
+import { createEventPrompt } from './prompts/createEventPrompt';
 
 const DEFAULT_TIMEZONE = 'Asia/Taipei';
 const DEFAULT_EVENT_DURATION_HOURS = 1;
+const AI_MODEL = 'google/gemini-2.0-flash-001';
 
 // ============================================================================
 // TYPES & SCHEMAS
@@ -48,21 +50,9 @@ interface AIContext {
   userId: string;
   messageId: string;
   controller: CalendarEventController;
-  apiKey: string;
-  aiBaseUrl: string;
+  openrouterApiKey: string;
   timezone?: string;
   groupId?: string;
-}
-
-// AI API 響應類型定義
-interface AIApiResponse {
-  success: boolean;
-  data?: {
-    text: string;
-    toolCalls: any[];
-    toolResults: any[];
-  };
-  error?: string;
 }
 
 // ============================================================================
@@ -168,87 +158,6 @@ const createDirectEvent = async (
 };
 
 // ============================================================================
-// AI TOOLS
-// ============================================================================
-
-/**
- * 創建 AI 事件工具
- */
-const createEventTool = (
-  controller: CalendarEventController,
-  userId: string,
-  messageId: string,
-  timezone: string,
-  groupId?: string,
-) =>
-  tool({
-    description: '創建一個新的行事曆活動',
-    parameters: createEventSchema,
-    execute: async ({ title, description, start, end, allDay, color, label }) => {
-      const eventData: NewCalendarEvent = {
-        title,
-        description,
-        start: new Date(start),
-        end: new Date(end),
-        allDay: allDay || false,
-        color,
-        label,
-        userId,
-        completed: false,
-        messageId,
-        groupId: groupId || null,
-      };
-
-      const result = await executeCreateEvent(controller, eventData, timezone);
-      return result;
-    },
-  });
-
-// ============================================================================
-// RESULT PROCESSING
-// ============================================================================
-
-/**
- * 處理工具調用結果
- */
-const processToolResults = (
-  toolCalls: any[],
-  toolResults: any[] | undefined,
-): {
-  text: string;
-  createdEvent: typeof calendarEvents.$inferSelect | null;
-  success: boolean;
-} => {
-  let resultText = '';
-  let createdEvent: typeof calendarEvents.$inferSelect | null = null;
-  let success = false;
-
-  if (toolCalls.length > 0 && toolResults) {
-    for (const toolCall of toolCalls) {
-      if (toolCall.toolName === 'createEvent') {
-        const toolResult = toolResults.find((tr) => tr.toolCallId === toolCall.toolCallId);
-
-        if (toolResult?.result) {
-          const toolResultData = toolResult.result as EventResult;
-
-          if (toolResultData.success) {
-            createdEvent = toolResultData.createdEvent;
-            resultText = toolResultData.message;
-            success = true;
-          } else {
-            resultText = toolResultData.error;
-            success = false;
-          }
-        }
-        break; // 只處理第一個創建事件的工具調用
-      }
-    }
-  }
-
-  return { text: resultText, createdEvent, success };
-};
-
-// ============================================================================
 // MAIN AI FUNCTION
 // ============================================================================
 
@@ -256,8 +165,8 @@ const processToolResults = (
 interface AIResult {
   success: boolean;
   text: string;
-  toolCalls: any[];
-  toolResults: any[];
+  toolCalls: unknown[];
+  toolResults: unknown[];
   createdEvent: typeof calendarEvents.$inferSelect | null;
   error?: string;
 }
@@ -269,63 +178,77 @@ export const createEventWithAI = async (
   userMessage: string,
   context: AIContext,
 ): Promise<AIResult> => {
-  const { userId, controller, apiKey, aiBaseUrl, messageId, groupId } = context;
+  const { userId, controller, openrouterApiKey, messageId, groupId } = context;
   const timezone = context.timezone || DEFAULT_TIMEZONE;
 
   try {
     const userLocalDate = getUserLocalDateString(timezone);
 
-    // Call the AI API instead of using generateText directly
-    const aiResponse = await axios.post<AIApiResponse>(`${aiBaseUrl}/api/calendar-ai`, {
-      userMessage,
-      timezone,
-      userLocalDate,
-      apiKey,
+    // Create OpenRouter client using OpenAI SDK
+    const openrouter = createOpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: openrouterApiKey,
     });
-    console.log('🚀 ~ aiResponse:', JSON.stringify(aiResponse.data));
 
-    if (!aiResponse.data.success) {
-      throw new Error(aiResponse.data.error || 'AI API returned error');
-    }
+    // Create event tool - in v5, use inputSchema instead of parameters
+    const eventTool = tool({
+      description: '建立新的行事曆活動',
+      inputSchema: createEventSchema,
+    });
 
-    const { text, toolCalls, toolResults } = aiResponse.data.data!;
+    // Call AI using OpenRouter
+    const result = await generateText({
+      model: openrouter(AI_MODEL),
+      messages: [
+        {
+          role: 'system',
+          content: createEventPrompt({ timezone, userLocalDate }),
+        },
+        { role: 'user', content: userMessage },
+      ],
+      tools: { createEvent: eventTool },
+      toolChoice: 'auto',
+    });
+
+    console.log('🚀 ~ AI result:', JSON.stringify(result));
+
+    const { text, toolCalls, toolResults } = result;
 
     // 處理工具調用結果 - 需要實際執行事件創建
     let resultText = text;
     let createdEvent: typeof calendarEvents.$inferSelect | null = null;
     let success = false;
 
-    if (toolCalls && toolCalls.length > 0 && toolResults) {
+    if (toolCalls && toolCalls.length > 0) {
       for (const toolCall of toolCalls) {
         if (toolCall.toolName === 'createEvent') {
-          const toolResult = toolResults.find((tr: any) => tr.toolCallId === toolCall.toolCallId);
+          // In v5, toolCall.input contains the parsed arguments
+          const eventParams = toolCall.input as CreateEventParams;
 
-          if (toolResult?.result?.success && toolResult.result.event) {
-            // 實際執行事件創建
-            const eventData: NewCalendarEvent = {
-              title: toolResult.result.event.title,
-              description: toolResult.result.event.description,
-              start: new Date(toolResult.result.event.start),
-              end: new Date(toolResult.result.event.end),
-              allDay: toolResult.result.event.allDay || false,
-              color: toolResult.result.event.color,
-              label: toolResult.result.event.label,
-              userId,
-              completed: false,
-              messageId,
-              groupId: groupId || null,
-            };
+          // 實際執行事件創建
+          const eventData: NewCalendarEvent = {
+            title: eventParams.title,
+            description: eventParams.description,
+            start: new Date(eventParams.start),
+            end: new Date(eventParams.end),
+            allDay: eventParams.allDay || false,
+            color: eventParams.color,
+            label: eventParams.label,
+            userId,
+            completed: false,
+            messageId,
+            groupId: groupId || null,
+          };
 
-            const executeResult = await executeCreateEvent(controller, eventData, timezone);
+          const executeResult = await executeCreateEvent(controller, eventData, timezone);
 
-            if (executeResult.success) {
-              createdEvent = executeResult.createdEvent;
-              resultText = executeResult.message;
-              success = true;
-            } else {
-              resultText = executeResult.error;
-              success = false;
-            }
+          if (executeResult.success) {
+            createdEvent = executeResult.createdEvent;
+            resultText = executeResult.message;
+            success = true;
+          } else {
+            resultText = executeResult.error;
+            success = false;
           }
           break;
         }

@@ -9,8 +9,7 @@ import { type MessageContext, processMessage } from './message-handlers';
 
 interface WebhookDependencies {
   accessToken: string;
-  googleApiKey: string;
-  aiBaseUrl: string;
+  openrouterApiKey: string;
   db: Database;
   fileController: FileController;
   frontendUrl: string;
@@ -42,8 +41,7 @@ const handleMessageEvent = async (event: any, dependencies: WebhookDependencies)
     event,
     accessToken: dependencies.accessToken,
     db: dependencies.db,
-    googleApiKey: dependencies.googleApiKey,
-    aiBaseUrl: dependencies.aiBaseUrl,
+    openrouterApiKey: dependencies.openrouterApiKey,
     frontendUrl: dependencies.frontendUrl,
   };
 
@@ -74,8 +72,7 @@ const handleEvent = async (event: any, dependencies: WebhookDependencies): Promi
 export const handleWebhook = async (events: any[], c: Context<WebhookContext>): Promise<string> => {
   const dependencies: WebhookDependencies = {
     accessToken: c.env.LINE_ACCESS_TOKEN,
-    googleApiKey: c.env.GOOGLE_AI_API_KEY,
-    aiBaseUrl: c.env.AI_BASE_URL,
+    openrouterApiKey: c.env.OPENROUTER_API_KEY,
     db: c.get('db'),
     fileController: new FileController(c.get('db'), c.env.APP_STORAGE),
     frontendUrl: c.env.FRONTEND_URL || '',

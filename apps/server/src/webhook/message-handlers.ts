@@ -17,8 +17,7 @@ export interface MessageContext {
   event: any;
   accessToken: string;
   db: Database;
-  googleApiKey: string;
-  aiBaseUrl: string;
+  openrouterApiKey: string;
   fileController?: FileController;
   frontendUrl: string;
 }
@@ -28,7 +27,7 @@ export interface MessageContext {
 // ============================================================================
 
 export const processMessage = async (context: MessageContext): Promise<void> => {
-  const { event, db, accessToken, googleApiKey, aiBaseUrl, fileController, frontendUrl } = context;
+  const { event, db, accessToken, openrouterApiKey, fileController, frontendUrl } = context;
   const { message, source } = event;
 
   console.log(`處理訊息: ${message.id}, 類型: ${message.type}`);
@@ -74,8 +73,7 @@ export const processMessage = async (context: MessageContext): Promise<void> => 
         message,
         source,
         db,
-        googleApiKey,
-        aiBaseUrl,
+        openrouterApiKey,
         savedMessageId,
         frontendUrl,
       );
@@ -126,8 +124,7 @@ const processText = async (
   message: any,
   source: any,
   db: Database,
-  googleApiKey: string,
-  aiBaseUrl: string,
+  openrouterApiKey: string,
   savedMessageId: number,
   frontendUrl: string,
 ): Promise<string | null> => {
@@ -150,8 +147,7 @@ const processText = async (
   const aiResult = await createEventWithAI(aiInputText, {
     userId: source.userId,
     controller: calendarEventController,
-    apiKey: googleApiKey,
-    aiBaseUrl,
+    openrouterApiKey,
     messageId: message.id,
     groupId: source.groupId || source.roomId,
   });
