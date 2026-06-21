@@ -8,7 +8,7 @@ import { createEventPrompt } from './prompts/createEventPrompt';
 
 const DEFAULT_TIMEZONE = 'Asia/Taipei';
 const DEFAULT_EVENT_DURATION_HOURS = 1;
-const AI_MODEL = 'google/gemini-2.0-flash-001';
+const AI_MODEL = 'google/gemini-3.1-flash-lite';
 
 // ============================================================================
 // TYPES & SCHEMAS
