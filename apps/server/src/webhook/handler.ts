@@ -1,17 +1,15 @@
 import type { Context } from 'hono';
 import type { Database } from '../db';
-import { FileController } from '../files/controller';
 import { pushMessage } from '../lib/line';
 import { welcomeMessage } from '../lib/messagt';
 import type { EnvironmentBindings } from '../types/env';
-import { FILE_MESSAGE_TYPES, GROUP_TYPES, TEXT_MESSAGE_TYPE, WEBHOOK_RESPONSE } from './constants';
+import { WEBHOOK_RESPONSE } from './constants';
 import { type MessageContext, processMessage } from './message-handlers';
 
 interface WebhookDependencies {
   accessToken: string;
   openrouterApiKey: string;
   db: Database;
-  fileController: FileController;
   frontendUrl: string;
 }
 
@@ -32,10 +30,8 @@ const handleJoinEvent = async (event: any, dependencies: WebhookDependencies): P
   }
 };
 
-// Handle message events (text and files)
+// Handle message events (files are no longer backed up)
 const handleMessageEvent = async (event: any, dependencies: WebhookDependencies): Promise<void> => {
-  const messageType = event.message.type;
-
   // Create context for message processing
   const context: MessageContext = {
     event,
@@ -44,11 +40,6 @@ const handleMessageEvent = async (event: any, dependencies: WebhookDependencies)
     openrouterApiKey: dependencies.openrouterApiKey,
     frontendUrl: dependencies.frontendUrl,
   };
-
-  // Add file controller for file messages
-  if (FILE_MESSAGE_TYPES.includes(messageType)) {
-    context.fileController = dependencies.fileController;
-  }
 
   await processMessage(context);
 };
@@ -74,7 +65,6 @@ export const handleWebhook = async (events: any[], c: Context<WebhookContext>): 
     accessToken: c.env.LINE_ACCESS_TOKEN,
     openrouterApiKey: c.env.OPENROUTER_API_KEY,
     db: c.get('db'),
-    fileController: new FileController(c.get('db'), c.env.APP_STORAGE),
     frontendUrl: c.env.FRONTEND_URL || '',
   };
 

@@ -1,19 +1,5 @@
 import axios from 'axios';
 
-const downloadFile = async ({
-  messageId,
-  accessToken,
-}: {
-  messageId: string;
-  accessToken: string;
-}) => {
-  const { data } = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
-    responseType: 'arraybuffer',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return data;
-};
-
 const replyMessage = async ({
   replyToken,
   message,
@@ -53,4 +39,4 @@ const pushMessage = async ({
   return data;
 };
 
-export { downloadFile, replyMessage, pushMessage };
+export { replyMessage, pushMessage };
