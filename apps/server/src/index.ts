@@ -1,5 +1,5 @@
 import { RPCHandler } from '@orpc/server/fetch';
-import { Hono, type Context } from 'hono';
+import { type Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';

@@ -16,6 +16,8 @@
       "!**/.zed",
       "!**/.vscode",
       "!**/routeTree.gen.ts",
+      "!**/worker-configuration.d.ts",
+      "!**/migrations/meta",
       "!**/src-tauri",
       "!**/.nuxt",
       "!bts.jsonc"
