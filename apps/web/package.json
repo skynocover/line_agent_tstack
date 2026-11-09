@@ -28,7 +28,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.1.1",
-    "@line/liff": "^2.26.1",
+    "@line/liff": "^2.31.2",
     "@orpc/client": "^1.6.8",
     "@orpc/react-query": "^1.6.8",
     "@orpc/server": "^1.6.8",
